@@ -12,15 +12,32 @@
 {% set approved = cards|selectattr('status','equalto','approved')|list %}
 {% set saved = approved|selectattr('gateway_token')|list %}
 {% set fresh = approved|rejectattr('gateway_token')|list %}
-{% if not approved %}<p>Upload a test card image and receive admin approval before depositing.</p>{% else %}
-<form method="post" action="/deposits/new"><input type="hidden" name="csrf" value="{{csrf_token()}}">
-{% if saved %}<label>Payment method<select name="card_id">
-{% for card in saved %}<option value="{{card.id}}">Previously used · Sumsub verified (demo) · •••• {{card.last4}}</option>{% endfor %}
-{% for card in fresh %}<option value="{{card.id}}">New approved image {{card.action_id}} · enter card at Ottu</option>{% endfor %}
+{% if not approved %}
+<p>Upload a dummy card image and obtain approval before depositing.</p>
+<a class="button" href="{{url_for('add_card')}}">+ Verify a card with Sumsub (demo)</a>
+{% else %}
+{% if pending_amount %}<div class="notice"><strong>New card verification requested.</strong> Your intended deposit of AED {{'%.2f'|format(pending_amount)}} is saved in this browser session. After admin approval, select the newly approved card below and continue to Ottu. Pending/rejected cards cannot be used.</div>{% endif %}
+<form method="post" action="{{url_for('create_deposit')}}"><input type="hidden" name="csrf" value="{{csrf_token()}}">
+{% if saved or fresh|length > 1 or pending_amount %}
+<label>Payment method<select name="card_id" id="payment-method-choice" required>
+{% for card in fresh %}<option value="{{card.id}}" {{'selected' if pending_amount and loop.first else ''}}>New Sumsub-approved card · Verification {{card.action_id}} · Enter card at Ottu</option>{% endfor %}
+{% for card in saved %}<option value="{{card.id}}" {{'selected' if not pending_amount and loop.first and not fresh else ''}}>Previously used · Sumsub verified (demo) · •••• {{card.last4}}</option>{% endfor %}
+<option value="new_card">+ Use another card — Start new Sumsub verification</option>
 </select></label>
-{% elif fresh|length > 1 %}<label>Approved image<select name="card_id">{% for card in fresh %}<option value="{{card.id}}">Approved image {{card.action_id}}</option>{% endfor %}</select></label>
-{% else %}<p><span class="pill amber">First deposit</span> Card selection is not available yet. Continue to the Ottu-style checkout to enter dummy card details.</p>{% endif %}
-<label>Deposit amount (AED)<input type="number" name="amount" min="1" max="100000" step="0.01" value="100" required></label><button>Proceed to Ottu demo</button></form>
+{% else %}<p><span class="pill amber">First deposit</span> Your approved card is ready. No saved card exists yet. Continue to the Ottu-style checkout to enter fictional card information.</p>
+<label class="new-card-link">Want to use a different card instead? <a href="{{url_for('add_card')}}">Upload another card for Sumsub verification</a></label>{% endif %}
+<label>Deposit amount (AED)<input type="number" name="amount" min="1" max="100000" step="0.01" value="{{pending_amount if pending_amount else 100}}" required></label>
+<button id="deposit-action">Proceed to Ottu demo</button>
+</form>
+<script>
+(function(){
+  const select=document.getElementById('payment-method-choice');
+  const button=document.getElementById('deposit-action');
+  if(!select || !button)return;
+  function update(){button.textContent=select.value==='new_card'?'Continue to Sumsub verification':'Proceed to Ottu demo';}
+  select.addEventListener('change',update);update();
+})();
+</script>
 {% endif %}</section></div>
 <section class="panel"><h2>Deposit history · CRM reconciliation</h2><div class="scroll"><table><thead><tr><th>Reference</th><th>Card</th><th>Amount</th><th>Payment mode</th><th>Card check (demo)</th><th>Ottu status</th><th>MT5 credit</th></tr></thead><tbody>
 {% for d in deposits %}<tr><td>{{d.reference}}</td><td>{{'••••'+d.last4 if d.last4 else 'Not saved'}}</td><td>AED {{'%.2f'|format(d.amount)}}</td><td>{{d.checkout_mode or '—'}}</td><td>{{d.checkout_match or '—'}}</td><td>{{d.status}}</td><td>{{d.credit_status}}</td></tr>{% else %}<tr><td colspan="7">No deposits.</td></tr>{% endfor %}</tbody></table></div></section>{% endblock %}
