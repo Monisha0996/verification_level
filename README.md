@@ -65,3 +65,9 @@ This mock takes only dummy masked metadata on the Ottu-like page; a production h
 - A synthetic token is created only after simulated successful payment; no token is created by Sumsub approval or a declined payment.
 - On **second** and later deposits an approved, previously paid saved-card option appears. The 16-digit card number is displayed as `•••• •••• •••• 3456` (example); the client must enter a fictional 3–4 digit CVV on the hosted demo screen. It is cleared before HTTP submission; the backend receives only a mock confirmation marker. Real CVV collection belongs entirely to the true PSP-hosted checkout, never the AZM backend.
 - The mock is not an ownership verifier: neither image-only admin review nor KYC-name matching can prove the uploaded image and later payment instrument represent the same card. Real integration must bind a Sumsub verification result to a PSP-provided stable identifier.
+
+
+## v6 — Add another card
+In the client portal's **Make a deposit** section, choose **+ Use another card — Start new Sumsub verification** and enter the intended amount. The app redirects to `/cards/new` to upload a NEW dummy card image, creates a separate mock Sumsub action and marks it pending. The demo admin must approve the new evidence. The client can then select the newly approved card and continue to Ottu-style first-time card entry. Only after its first successful simulated payment is a new synthetic token created; thereafter this card appears in the previously used options. The existing previously used card stays available. No real Sumsub/Ottu calls occur.
+
+**Deployment:** commit the updated `app.py`, `templates/client.html` and documentation to the same GitHub repository. Render connected to that branch will normally auto-deploy on new commits; otherwise use Render Dashboard → Manual Deploy → Deploy latest commit. Do not upload local DB files or card images.

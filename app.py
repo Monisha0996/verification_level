@@ -87,7 +87,7 @@ def dashboard():
     with db() as c:
         cards=c.execute('SELECT * FROM cards WHERE user_id=? ORDER BY id DESC',(session['uid'],)).fetchall()
         deposits=c.execute('SELECT d.*,c.last4,c.cardholder FROM deposits d JOIN cards c ON c.id=d.card_id WHERE d.user_id=? ORDER BY d.id DESC',(session['uid'],)).fetchall()
-    return render_template('client.html',user=current_user(),cards=cards,deposits=deposits)
+    return render_template('client.html',user=current_user(),cards=cards,deposits=deposits, pending_amount=session.get('pending_deposit_amount'))
 
 def clean_image(file):
     if not file or not file.filename:raise ValueError('Choose a card image.')
@@ -112,7 +112,7 @@ def add_card():
                 user=c.execute('SELECT name FROM users WHERE id=?',(session['uid'],)).fetchone()
                 c.execute('INSERT INTO cards(user_id,cardholder,bin_digits,last4,expiry,image_path,action_id,check_id,created_at) VALUES(?,?,?,?,?,?,?,?,?)',
                     (session['uid'],user['name'],'','','',img,'demo_action_'+uuid.uuid4().hex[:12],'demo_check_'+uuid.uuid4().hex[:12],now()))
-            flash('Dummy image submitted for Sumsub-style admin approval. Enter card metadata only later at Ottu demo checkout.','success')
+            flash('New card image submitted for Sumsub-style approval. After admin approval, return to Make a deposit and select this new card to continue to Ottu.','success')
             return redirect(url_for('dashboard'))
         except ValueError as e:flash(str(e),'error')
     return render_template('add_card.html')
@@ -122,6 +122,13 @@ def create_deposit():
     try:amount=float(request.form.get('amount',''))
     except (TypeError,ValueError):abort(400)
     if not (1<=amount<=100000):flash('Demo amount must be AED 1–100,000.','error');return redirect(url_for('dashboard'))
+    supplied=request.form.get('card_id','').strip()
+    if supplied=='new_card':
+        # A new payment method always requires its own verification action.
+        # Preserve only the deposit amount in the session; no card credentials.
+        session['pending_deposit_amount']=amount
+        flash('New card selected. Upload a dummy image for Sumsub-style review before Ottu checkout.','success')
+        return redirect(url_for('add_card'))
     with db() as c:
         supplied=request.form.get('card_id','').strip()
         if supplied:
@@ -140,6 +147,7 @@ def create_deposit():
         ref='AZM-'+uuid.uuid4().hex[:10].upper();sid='mock_ottu_'+uuid.uuid4().hex[:14]
         cur=c.execute('INSERT INTO deposits(user_id,card_id,amount,ottu_session,reference,created_at) VALUES(?,?,?,?,?,?)',(session['uid'],card['id'],amount,sid,ref,now()))
         dep_id=cur.lastrowid
+    session.pop('pending_deposit_amount',None)
     return redirect(url_for('checkout',deposit_id=dep_id))
 @app.route('/checkout/<int:deposit_id>')
 @login_required('client')

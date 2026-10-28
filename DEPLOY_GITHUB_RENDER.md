@@ -28,3 +28,9 @@ The app uses SQLite and local image uploads. Render Free web service filesystem 
 - Login loops: set a fixed SECRET_KEY, redeploy.
 - Admin password: the admin user is created during initial database initialization. Changing ADMIN_PASSWORD later won't change the previously persisted admin user.
 - Repeated loss of demo accounts: expected on Render Free.
+
+
+## v6 — Add another card
+In the client portal's **Make a deposit** section, choose **+ Use another card — Start new Sumsub verification** and enter the intended amount. The app redirects to `/cards/new` to upload a NEW dummy card image, creates a separate mock Sumsub action and marks it pending. The demo admin must approve the new evidence. The client can then select the newly approved card and continue to Ottu-style first-time card entry. Only after its first successful simulated payment is a new synthetic token created; thereafter this card appears in the previously used options. The existing previously used card stays available. No real Sumsub/Ottu calls occur.
+
+**Deployment:** commit the updated `app.py`, `templates/client.html` and documentation to the same GitHub repository. Render connected to that branch will normally auto-deploy on new commits; otherwise use Render Dashboard → Manual Deploy → Deploy latest commit. Do not upload local DB files or card images.
